@@ -127,7 +127,7 @@ def privacy():
 
         <p>
             For privacy-related requests, please contact:
-            YOUR-ALBERTO-EMAIL-HERE
+            djsfrnr@gmail.com
         </p>
 
         <p><strong>Last updated:</strong> September 2026</p>
