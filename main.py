@@ -135,3 +135,9 @@ def privacy():
     </body>
     </html>
     """
+@app.get("/auth/callback")
+def auth_callback():
+    return {
+        "status": "ok",
+        "message": "Alberto AI Instagram login completed."
+    }
