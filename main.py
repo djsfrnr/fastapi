@@ -1,4 +1,5 @@
 import os
+import requests
 
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import HTMLResponse
@@ -6,6 +7,8 @@ from fastapi.responses import HTMLResponse
 app = FastAPI()
 
 VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
+INSTAGRAM_ACCESS_TOKEN = os.getenv("INSTAGRAM_ACCESS_TOKEN")
+INSTAGRAM_USER_ID = os.getenv("INSTAGRAM_USER_ID")
 
 
 @app.get("/")
@@ -13,7 +16,7 @@ def root():
     return {
         "status": "online",
         "name": "Alberto AI",
-        "version": "0.1"
+        "version": "0.2"
     }
 
 
@@ -33,12 +36,75 @@ async def verify_webhook(request: Request):
     return Response(content="Forbidden", status_code=403)
 
 
+def send_instagram_message(recipient_id: str, text: str):
+    url = f"https://graph.instagram.com/v26.0/{INSTAGRAM_USER_ID}/messages"
+
+    headers = {
+        "Authorization": f"Bearer {INSTAGRAM_ACCESS_TOKEN}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "recipient": {
+            "id": recipient_id
+        },
+        "message": {
+            "text": text
+        }
+    }
+
+    response = requests.post(
+        url,
+        headers=headers,
+        json=payload,
+        timeout=15
+    )
+
+    print("Instagram send status:", response.status_code)
+    print("Instagram send response:", response.text)
+
+    return response
+
+
 @app.post("/webhook")
 async def receive_webhook(request: Request):
     payload = await request.json()
 
     print("Instagram webhook received:")
     print(payload)
+
+    try:
+        entries = payload.get("entry", [])
+
+        for entry in entries:
+            messaging_events = entry.get("messaging", [])
+
+            for event in messaging_events:
+                sender_id = event.get("sender", {}).get("id")
+                message = event.get("message", {})
+                text = message.get("text")
+
+                # Ignorar eventos sem texto
+                if not sender_id or not text:
+                    continue
+
+                # Evitar responder às próprias mensagens do Alberto
+                if str(sender_id) == str(INSTAGRAM_USER_ID):
+                    continue
+
+                # Evitar responder a mensagens eco
+                if message.get("is_echo"):
+                    continue
+
+                print(f"Message from {sender_id}: {text}")
+
+                send_instagram_message(
+                    recipient_id=sender_id,
+                    text="Demoraste."
+                )
+
+    except Exception as e:
+        print("Webhook processing error:", str(e))
 
     return {"status": "ok"}
 
@@ -126,8 +192,7 @@ def privacy():
         <h2>Contact</h2>
 
         <p>
-            For privacy-related requests, please contact:
-            djsfrnr@gmail.com
+            For privacy-related requests, contact the Alberto AI administrator.
         </p>
 
         <p><strong>Last updated:</strong> September 2026</p>
@@ -135,6 +200,8 @@ def privacy():
     </body>
     </html>
     """
+
+
 @app.get("/auth/callback")
 def auth_callback():
     return {
